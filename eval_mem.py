@@ -2,22 +2,27 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+from captioning.data.dataloaderraw import *
+# from captioning.data.dataloader import *
+from dataloader_extend import *
+# from six.moves import cPickle
+import _pickle as cPickle
+
 import json
 import numpy as np
 
 import time
 import os
-from six.moves import cPickle
 
 import opts
 import models
-from dataloader_extend import *
 import eval_utils_mem
-from dataloaderraw import *
 import argparse
 import misc.utils as utils
 import torch
+
 os.environ["CUDA_VISIBLE_DEVICES"]="1"
+
 # Input arguments and options
 parser = argparse.ArgumentParser()
 # Input paths
@@ -113,7 +118,7 @@ parser.add_argument('--memory_cell_path', type=str, default='0',
 opt = parser.parse_args()
 
 # Load infos
-with open(opt.infos_path) as f:
+with open(opt.infos_path, 'rb') as f:
     infos = cPickle.load(f)
 
 # override and collect parameters
