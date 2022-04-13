@@ -1,0 +1,20 @@
+Part 1 - Overall encoder - decoder -
+
+Input image (I) -> CNN (visual features - V) -> MGCN + D (visual features reencoded with dictionary V') -> RNN -> Caption (S) 
+
+1. V' -> S can be done through same Attn based RNN from BU paper (Attention caption model)
+2. Image features V through scene graph parser that gives obj, attr, and rel features
+3. For image scene graphs we use Faster-RCNN as the object detector [37],
+MOTIFS relationship detector [56] as the relationship classifier, and 
+we use our own attribute classifier: an small fc-ReLU-fc-Softmax network head
+4. 
+
+Part 2 - SGAE
+
+Sentence scene graph -> GCN -> Dictionary -> RNN -> S
+
+1. SPICE sentence to scene graph converter for S -> G [can be pre extracted]
+2. Attention structure in BU paper to reconstruct S (Attention caption model)
+
+
+
