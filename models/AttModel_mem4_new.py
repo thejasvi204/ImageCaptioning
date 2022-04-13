@@ -27,6 +27,17 @@ from torch.nn.utils.rnn import PackedSequence, pack_padded_sequence, pad_packed_
 
 from .CaptionModel_mem import CaptionModel
 
+
+from config import get_conf 
+if torch.cuda.is_available():
+    device = torch.device('cuda')
+else:
+    device = torch.device('cpu')
+
+conf = get_conf()
+device = torch.device('cpu') if conf['device'] == 'cpu' else device 
+print(device, "in", __file__)
+
 def sort_pack_padded_sequence(input, lengths):
     sorted_lengths, indices = torch.sort(lengths, descending=True)
     tmp = pack_padded_sequence(input[indices], sorted_lengths, batch_first=True)
@@ -149,7 +160,7 @@ class AttModel_mem4_new(CaptionModel):
             print('create a new memory_cell')
             memory_init = np.random.rand(self.memory_size, self.rnn_size) / 100
         memory_init = np.float32(memory_init)
-        self.memory_cell = torch.from_numpy(memory_init).cuda().requires_grad_()
+        self.memory_cell = torch.from_numpy(memory_init).to(device).requires_grad_()
 
 
         #self.rela_mem = Memory_cell2(opt)
@@ -222,7 +233,7 @@ class AttModel_mem4_new(CaptionModel):
         N_img = N_att / seq_per_img
         att_feats_new = att_feats.clone()
         rela_feats_new = rela_feats.clone()
-        attr_feats_new = torch.zeros([attr_masks_size[0], attr_masks_size[1], self.rnn_size]).cuda()
+        attr_feats_new = torch.zeros([attr_masks_size[0], attr_masks_size[1], self.rnn_size]).to(device)
         for img_id in range(int(N_img)):
             N_rela = torch.sum(rela_masks[img_id * seq_per_img, :])
             N_box = torch.sum(att_masks[img_id * seq_per_img, :])
@@ -258,7 +269,7 @@ class AttModel_mem4_new(CaptionModel):
                     obj_feat_use = att_feats[img_id * seq_per_img, int(attr_obj_id), :]
                     N_attr_each = torch.sum(attr_masks[img_id * seq_per_img, i, :])
                     for j in range(N_attr_each-1):
-                        attr_index = attr_matrix[img_id * seq_per_img, i, j+1].cuda().long()
+                        attr_index = attr_matrix[img_id * seq_per_img, i, j+1].to(device).long()
                         attr_feat_use = self.rela_embed(attr_index)
                         attr_feat_use = self.embed2vis(attr_feat_use)
                         attr_feats_new[img_id * seq_per_img:(img_id+1) * seq_per_img, i, :] += \
@@ -299,12 +310,12 @@ class AttModel_mem4_new(CaptionModel):
         else:
             seq_per_img = self.seq_per_img
         N_img = N_att/seq_per_img
-        rela_feats = torch.zeros([rela_feats_size[0], rela_feats_size[1], self.rnn_size]).cuda()
+        rela_feats = torch.zeros([rela_feats_size[0], rela_feats_size[1], self.rnn_size]).to(device)
         for img_id in range(int(N_img)):
             N_rela = torch.sum(rela_masks[img_id * seq_per_img, :])
             N_rela = int(N_rela)
             if N_rela>0:
-                rela_index = rela_matrix[img_id*seq_per_img,:N_rela,2].cuda().long()
+                rela_index = rela_matrix[img_id*seq_per_img,:N_rela,2].to(device).long()
                 rela_feats_temp = self.rela_embed(rela_index)
                 rela_feats_temp = self.embed2vis(rela_feats_temp)
                 rela_feats[img_id*seq_per_img:(img_id+1)*seq_per_img,:N_rela,:] = rela_feats_temp
@@ -346,8 +357,8 @@ class AttModel_mem4_new(CaptionModel):
                 N_att_new_max = \
                     max(N_att_new_max, torch.sum(rela_masks[img_id * seq_per_img, :]) +
                         torch.sum(att_masks[img_id * seq_per_img, :]))
-        att_masks_new = torch.zeros([N_att, int(N_att_new_max)]).cuda()
-        att_feats_new = torch.zeros([N_att, int(N_att_new_max), self.rnn_size]).cuda()
+        att_masks_new = torch.zeros([N_att, int(N_att_new_max)]).to(device)
+        att_feats_new = torch.zeros([N_att, int(N_att_new_max), self.rnn_size]).to(device)
         for img_id in range(int(N_img)):
             N_rela = int(torch.sum(rela_masks[img_id * seq_per_img, :]))
             N_box = int(torch.sum(att_masks[img_id * seq_per_img, :]))
@@ -405,10 +416,10 @@ class AttModel_mem4_new(CaptionModel):
         ssg_rela_matrix = ssg_data['ssg_rela_matrix']
         ssg_rela_masks = ssg_data['ssg_rela_masks']
 
-        ssg_obj_feats = torch.zeros([ssg_obj.size()[0], ssg_obj.size()[1], self.rnn_size]).cuda()
-        ssg_rela_feats = torch.zeros([ssg_rela_matrix.size()[0], ssg_rela_matrix.size()[1], self.rnn_size]).cuda()
-        ssg_attr_feats = torch.zeros([ssg_attr.size()[0], ssg_attr.size()[1], self.rnn_size]).cuda()
-        ssg_attr_masks_new = torch.zeros(ssg_obj.size()).cuda()
+        ssg_obj_feats = torch.zeros([ssg_obj.size()[0], ssg_obj.size()[1], self.rnn_size]).to(device)
+        ssg_rela_feats = torch.zeros([ssg_rela_matrix.size()[0], ssg_rela_matrix.size()[1], self.rnn_size]).to(device)
+        ssg_attr_feats = torch.zeros([ssg_attr.size()[0], ssg_attr.size()[1], self.rnn_size]).to(device)
+        ssg_attr_masks_new = torch.zeros(ssg_obj.size()).to(device)
 
         ssg_obj_size = ssg_obj.size()
         N_att = ssg_obj_size[0]
@@ -422,7 +433,7 @@ class AttModel_mem4_new(CaptionModel):
             N_obj = int(torch.sum(ssg_obj_masks[img_id*seq_per_img,:]))
             if N_obj == 0:
                 continue
-            obj_feats_ori = self.embed(ssg_obj[img_id*seq_per_img,:N_obj].cuda().long())
+            obj_feats_ori = self.embed(ssg_obj[img_id*seq_per_img,:N_obj].to(device).long())
             obj_feats_temp = self.ssg_obj_obj_fc(obj_feats_ori)
             obj_num = np.ones([N_obj,])
 
@@ -434,7 +445,7 @@ class AttModel_mem4_new(CaptionModel):
                 rela_index = ssg_rela_matrix[img_id * seq_per_img, rela_id, 2]
                 sbj_feat = obj_feats_ori[sbj_id]
                 obj_feat = obj_feats_ori[obj_id]
-                rela_feat = self.embed(rela_index.cuda().long())
+                rela_feat = self.embed(rela_index.to(device).long())
                 obj_feats_temp[sbj_id] = obj_feats_temp[sbj_id] + self.ssg_sbj_rela_fc(torch.cat((sbj_feat, obj_feat, rela_feat)))
                 obj_num[sbj_id] = obj_num[sbj_id] + 1.0
                 obj_feats_temp[obj_id] = obj_feats_temp[obj_id] + self.ssg_obj_rela_fc(torch.cat((sbj_feat, obj_feat, rela_feat)))
@@ -443,12 +454,12 @@ class AttModel_mem4_new(CaptionModel):
             for obj_id in range(N_obj):
                 obj_feats_temp[obj_id] = obj_feats_temp[obj_id]/obj_num[obj_id]
 
-            attr_feats_temp = torch.zeros([N_obj, self.rnn_size]).cuda()
+            attr_feats_temp = torch.zeros([N_obj, self.rnn_size]).to(device)
             obj_attr_ids = 0
             for obj_id in range(N_obj):
                 N_attr = int(torch.sum(ssg_attr_masks[img_id*seq_per_img, obj_id,:]))
                 if N_attr != 0:
-                    attr_feat_ori = self.embed(ssg_attr[img_id * seq_per_img, obj_id, :N_attr].cuda().long())
+                    attr_feat_ori = self.embed(ssg_attr[img_id * seq_per_img, obj_id, :N_attr].to(device).long())
                     for attr_id in range(N_attr):
                         attr_feats_temp[obj_attr_ids] = attr_feats_temp[obj_attr_ids] +\
                                                         self.ssg_attr_fc(torch.cat((obj_feats_ori[obj_id], attr_feat_ori[attr_id])))
@@ -499,8 +510,8 @@ class AttModel_mem4_new(CaptionModel):
             N_attr = int(torch.sum(ssg_attr_masks[img_id*seq_per_img,:]))
             N_att_max = max(N_att_max, N_rela + N_obj + N_attr)
 
-        att_feats = torch.zeros([N_att, N_att_max, self.rnn_size]).cuda()
-        att_masks = torch.zeros([N_att, N_att_max]).cuda()
+        att_feats = torch.zeros([N_att, N_att_max, self.rnn_size]).to(device)
+        att_masks = torch.zeros([N_att, N_att_max]).to(device)
 
         for img_id in range(N_img):
             N_rela = int(torch.sum(ssg_rela_masks[img_id * seq_per_img, :]))

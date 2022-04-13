@@ -177,7 +177,7 @@ for i in range(len(model_infos)):
     model_infos[i]['opt'].memory_cell_path = memory_paths[i]
     tmp = models.setup(model_infos[i]['opt'])
     tmp.load_state_dict(torch.load(model_paths[i]))
-    tmp.cuda()
+    tmp.to(device)
     tmp.eval()
     _models.append(tmp)
 

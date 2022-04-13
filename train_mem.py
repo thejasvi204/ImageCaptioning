@@ -83,7 +83,7 @@ def train(opt):
     if opt.load_best_score == 1:
         best_val_score = infos.get('best_val_score', None)
 
-    model = models.setup(opt).cuda()
+    model = models.setup(opt).to(device)
     #dp_model = torch.nn.DataParallel(model)
     #dp_model = torch.nn.DataParallel(model, [0, 1])
     dp_model = model
@@ -182,13 +182,13 @@ def train(opt):
         rela_data = None
 
         tmp = [data['fc_feats'], data['labels'], data['masks']]
-        tmp = [_ if _ is None else torch.from_numpy(_).cuda() for _ in tmp]
+        tmp = [_ if _ is None else torch.from_numpy(_).to(device) for _ in tmp]
         fc_feats, labels, masks = tmp
 
 
         tmp = [data['att_feats'], data['att_masks'],data['rela_rela_matrix'],
                data['rela_rela_masks'], data['rela_attr_matrix'], data['rela_attr_masks']]
-        tmp = [_ if _ is None else torch.from_numpy(_).cuda() for _ in tmp]
+        tmp = [_ if _ is None else torch.from_numpy(_).to(device) for _ in tmp]
 
         att_feats, att_masks, rela_rela_matrix, rela_rela_masks, \
             rela_attr_matrix, rela_attr_masks = tmp
@@ -203,7 +203,7 @@ def train(opt):
 
         tmp = [data['ssg_rela_matrix'], data['ssg_rela_masks'], data['ssg_obj'], data['ssg_obj_masks'],
                data['ssg_attr'], data['ssg_attr_masks']]
-        tmp = [_ if _ is None else torch.from_numpy(_).cuda() for _ in tmp]
+        tmp = [_ if _ is None else torch.from_numpy(_).to(device) for _ in tmp]
         ssg_rela_matrix, ssg_rela_masks, ssg_obj, ssg_obj_masks, ssg_attr, ssg_attr_masks = tmp
         ssg_data = {}
         ssg_data['ssg_rela_matrix'] = ssg_rela_matrix
@@ -230,7 +230,7 @@ def train(opt):
 
             reward = get_self_critical_reward(dp_model, fc_feats, att_feats, att_masks, rela_data, ssg_data,
                                                    use_rela, training_mode, data, gen_result, opt)
-            loss = rl_crit(sample_logprobs, gen_result.data, torch.from_numpy(reward).float().cuda())
+            loss = rl_crit(sample_logprobs, gen_result.data, torch.from_numpy(reward).float().to(device))
 
         accumulate_iter = accumulate_iter + 1
         loss = loss/opt.accumulate_number

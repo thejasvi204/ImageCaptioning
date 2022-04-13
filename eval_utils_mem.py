@@ -15,6 +15,17 @@ import os
 import sys
 import misc.utils as utils
 
+from config import get_conf 
+if torch.cuda.is_available():
+    device = torch.device('cuda')
+else:
+    device = torch.device('cpu')
+
+conf = get_conf()
+device = torch.device('cpu') if conf['device'] == 'cpu' else device 
+print(device, "in", __file__)
+
+
 def language_eval(dataset, preds, model_id, split):
     import sys
     sys.path.append("coco-caption")
@@ -26,7 +37,8 @@ def language_eval(dataset, preds, model_id, split):
 
     if not os.path.isdir('eval_results'):
         os.mkdir('eval_results')
-    cache_path = os.path.join('eval_results/', model_id + '_' + split + '.json')
+    cache_path = os.path.join(
+        'eval_results/', model_id + '_' + split + '.json')
 
     coco = COCO(annFile)
     valids = coco.getImgIds()
@@ -34,7 +46,8 @@ def language_eval(dataset, preds, model_id, split):
     # filter results to only those in MSCOCO validation set (will be about a third)
     preds_filt = [p for p in preds if p['image_id'] in valids]
     print('using %d/%d predictions' % (len(preds_filt), len(preds)))
-    json.dump(preds_filt, open(cache_path, 'w')) # serialize to temporary json file. Sigh, COCO API...
+    # serialize to temporary json file. Sigh, COCO API...
+    json.dump(preds_filt, open(cache_path, 'w'))
 
     cocoRes = coco.loadRes(cache_path)
     cocoEval = COCOEvalCap(coco, cocoRes)
@@ -55,11 +68,13 @@ def language_eval(dataset, preds, model_id, split):
 
     return out, imgToEval
 
+
 def eval_split(model, crit, loader, training_mode=0, eval_kwargs={}):
     verbose = eval_kwargs.get('verbose', True)
     verbose_beam = eval_kwargs.get('verbose_beam', 1)
     verbose_loss = eval_kwargs.get('verbose_loss', 1)
-    num_images = eval_kwargs.get('num_images', eval_kwargs.get('val_images_use', -1))
+    num_images = eval_kwargs.get(
+        'num_images', eval_kwargs.get('val_images_use', -1))
     split = eval_kwargs.get('split', 'val')
     lang_eval = eval_kwargs.get('language_eval', 0)
     dataset = eval_kwargs.get('dataset', 'coco')
@@ -89,15 +104,17 @@ def eval_split(model, crit, loader, training_mode=0, eval_kwargs={}):
             rela_data = None
 
             tmp = [data['fc_feats'], data['labels'], data['masks']]
-            tmp = [_ if _ is None else torch.from_numpy(_).cuda() for _ in tmp]
+            tmp = [_ if _ is None else torch.from_numpy(
+                _).to(device) for _ in tmp]
             fc_feats, labels, masks = tmp
 
             tmp = [data['att_feats'], data['att_masks'], data['rela_rela_matrix'],
                    data['rela_rela_masks'], data['rela_attr_matrix'], data['rela_attr_masks']]
-            tmp = [_ if _ is None else torch.from_numpy(_).cuda() for _ in tmp]
+            tmp = [_ if _ is None else torch.from_numpy(
+                _).to(device) for _ in tmp]
 
             att_feats, att_masks, rela_rela_matrix, rela_rela_masks, \
-            rela_attr_matrix, rela_attr_masks = tmp
+                rela_attr_matrix, rela_attr_masks = tmp
 
             rela_data = {}
             rela_data['att_feats'] = att_feats
@@ -109,7 +126,8 @@ def eval_split(model, crit, loader, training_mode=0, eval_kwargs={}):
 
             tmp = [data['ssg_rela_matrix'], data['ssg_rela_masks'], data['ssg_obj'], data['ssg_obj_masks'],
                    data['ssg_attr'], data['ssg_attr_masks']]
-            tmp = [_ if _ is None else torch.from_numpy(_).cuda() for _ in tmp]
+            tmp = [_ if _ is None else torch.from_numpy(
+                _).to(device) for _ in tmp]
             ssg_rela_matrix, ssg_rela_masks, ssg_obj, ssg_obj_masks, ssg_attr, ssg_attr_masks = tmp
             ssg_data = {}
             ssg_data['ssg_rela_matrix'] = ssg_rela_matrix
@@ -122,7 +140,7 @@ def eval_split(model, crit, loader, training_mode=0, eval_kwargs={}):
             loss = 0
             with torch.no_grad():
                 loss = crit(model(fc_feats, att_feats, labels, att_masks,
-                                  rela_data, ssg_data,use_rela, training_mode), labels[:, 1:],masks[:, 1:]).item()
+                                  rela_data, ssg_data, use_rela, training_mode), labels[:, 1:], masks[:, 1:]).item()
 
             loss_sum = loss_sum + loss
             loss_evals = loss_evals + 1
@@ -136,36 +154,56 @@ def eval_split(model, crit, loader, training_mode=0, eval_kwargs={}):
         rela_data = None
         if use_rela:
             tmp = [data['fc_feats'][np.arange(loader.batch_size) * loader.seq_per_img],
-                   data['att_feats'][np.arange(loader.batch_size) * loader.seq_per_img],
-                   data['att_masks'][np.arange(loader.batch_size) * loader.seq_per_img],
-                   data['rela_rela_matrix'][np.arange(loader.batch_size) * loader.seq_per_img],
-                   data['rela_rela_masks'][np.arange(loader.batch_size) * loader.seq_per_img],
-                   data['rela_attr_matrix'][np.arange(loader.batch_size) * loader.seq_per_img],
-                   data['rela_attr_masks'][np.arange(loader.batch_size) * loader.seq_per_img],
-                   data['ssg_rela_matrix'][np.arange(loader.batch_size) * loader.seq_per_img],
-                   data['ssg_rela_masks'][np.arange(loader.batch_size) * loader.seq_per_img],
-                   data['ssg_obj'][np.arange(loader.batch_size) * loader.seq_per_img],
-                   data['ssg_obj_masks'][np.arange(loader.batch_size) * loader.seq_per_img],
-                   data['ssg_attr'][np.arange(loader.batch_size) * loader.seq_per_img],
-                   data['ssg_attr_masks'][np.arange(loader.batch_size) * loader.seq_per_img],
+                   data['att_feats'][np.arange(
+                       loader.batch_size) * loader.seq_per_img],
+                   data['att_masks'][np.arange(
+                       loader.batch_size) * loader.seq_per_img],
+                   data['rela_rela_matrix'][np.arange(
+                       loader.batch_size) * loader.seq_per_img],
+                   data['rela_rela_masks'][np.arange(
+                       loader.batch_size) * loader.seq_per_img],
+                   data['rela_attr_matrix'][np.arange(
+                       loader.batch_size) * loader.seq_per_img],
+                   data['rela_attr_masks'][np.arange(
+                       loader.batch_size) * loader.seq_per_img],
+                   data['ssg_rela_matrix'][np.arange(
+                       loader.batch_size) * loader.seq_per_img],
+                   data['ssg_rela_masks'][np.arange(
+                       loader.batch_size) * loader.seq_per_img],
+                   data['ssg_obj'][np.arange(
+                       loader.batch_size) * loader.seq_per_img],
+                   data['ssg_obj_masks'][np.arange(
+                       loader.batch_size) * loader.seq_per_img],
+                   data['ssg_attr'][np.arange(
+                       loader.batch_size) * loader.seq_per_img],
+                   data['ssg_attr_masks'][np.arange(
+                       loader.batch_size) * loader.seq_per_img],
                    ]
-            tmp = [torch.from_numpy(_).cuda() for _ in tmp]
+            tmp = [torch.from_numpy(_).to(device) for _ in tmp]
             fc_feats, att_feats, att_masks, rela_rela_matrix, rela_rela_masks, rela_attr_matrix, rela_attr_masks, \
-            ssg_rela_matrix, ssg_rela_masks, ssg_obj, ssg_obj_masks, ssg_attr, ssg_attr_masks = tmp
+                ssg_rela_matrix, ssg_rela_masks, ssg_obj, ssg_obj_masks, ssg_attr, ssg_attr_masks = tmp
         else:
             tmp = [data['fc_feats'][np.arange(loader.batch_size) * loader.seq_per_img],
-                   data['att_feats'][np.arange(loader.batch_size) * loader.seq_per_img],
-                   data['att_masks'][np.arange(loader.batch_size) * loader.seq_per_img],
-                   data['ssg_rela_matrix'][np.arange(loader.batch_size) * loader.seq_per_img],
-                   data['ssg_rela_masks'][np.arange(loader.batch_size) * loader.seq_per_img],
-                   data['ssg_obj'][np.arange(loader.batch_size) * loader.seq_per_img],
-                   data['ssg_obj_masks'][np.arange(loader.batch_size) * loader.seq_per_img],
-                   data['ssg_attr'][np.arange(loader.batch_size) * loader.seq_per_img],
-                   data['ssg_attr_masks'][np.arange(loader.batch_size) * loader.seq_per_img],
+                   data['att_feats'][np.arange(
+                       loader.batch_size) * loader.seq_per_img],
+                   data['att_masks'][np.arange(
+                       loader.batch_size) * loader.seq_per_img],
+                   data['ssg_rela_matrix'][np.arange(
+                       loader.batch_size) * loader.seq_per_img],
+                   data['ssg_rela_masks'][np.arange(
+                       loader.batch_size) * loader.seq_per_img],
+                   data['ssg_obj'][np.arange(
+                       loader.batch_size) * loader.seq_per_img],
+                   data['ssg_obj_masks'][np.arange(
+                       loader.batch_size) * loader.seq_per_img],
+                   data['ssg_attr'][np.arange(
+                       loader.batch_size) * loader.seq_per_img],
+                   data['ssg_attr_masks'][np.arange(
+                       loader.batch_size) * loader.seq_per_img],
                    ]
-            tmp = [torch.from_numpy(_).cuda() for _ in tmp]
+            tmp = [torch.from_numpy(_).to(device) for _ in tmp]
             fc_feats, att_feats, att_masks, ssg_rela_matrix, ssg_rela_masks, \
-            ssg_obj, ssg_obj_masks, ssg_attr, ssg_attr_masks = tmp
+                ssg_obj, ssg_obj_masks, ssg_attr, ssg_attr_masks = tmp
             rela_rela_matrix = None
             rela_rela_masks = None
             rela_attr_matrix = None
@@ -189,8 +227,8 @@ def eval_split(model, crit, loader, training_mode=0, eval_kwargs={}):
         # forward the model to also get generated samples for each image
         with torch.no_grad():
             seq = model(fc_feats, att_feats, att_masks, rela_data,
-                        ssg_data,use_rela, training_mode, opt=eval_kwargs, mode='sample')[0].data
-        
+                        ssg_data, use_rela, training_mode, opt=eval_kwargs, mode='sample')[0].data
+
         # Print beam search
         # sents_save_temp = []
         # if beam_size > 1 and verbose_beam:
@@ -207,7 +245,6 @@ def eval_split(model, crit, loader, training_mode=0, eval_kwargs={}):
         #         sents_index = sents_length.index(max(sents_length))
         #         sents_save_temp.append(sents_temp[sents_index])
 
-
         sents = utils.decode_sequence(loader.get_vocab(), seq, use_ssg=1)
         #sents = sents_save_temp
         for k, sent in enumerate(sents):
@@ -223,8 +260,6 @@ def eval_split(model, crit, loader, training_mode=0, eval_kwargs={}):
                 print(cmd)
                 os.system(cmd)
 
-
-
             predictions.append(entry)
         # if we wrapped around the split or used up val imgs budget then bail
         ix0 = data['bounds']['it_pos_now']
@@ -235,7 +270,8 @@ def eval_split(model, crit, loader, training_mode=0, eval_kwargs={}):
             predictions.pop()
 
         if verbose:
-            print('evaluating validation preformance... %d/%d (%f)' %(ix0 - 1, ix1, loss))
+            print('evaluating validation preformance... %d/%d (%f)' %
+                  (ix0 - 1, ix1, loss))
 
         if data['bounds']['wrapped']:
             break
@@ -244,15 +280,20 @@ def eval_split(model, crit, loader, training_mode=0, eval_kwargs={}):
 
     lang_stats = None
     if lang_eval == 1:
-        lang_stats, scores_each = language_eval(dataset, predictions, eval_kwargs['id'], split)
+        lang_stats, scores_each = language_eval(
+            dataset, predictions, eval_kwargs['id'], split)
 
         if verbose:
             for img_id in scores_each.keys():
-                print('image %s, %s' % (scores_each[img_id]['image_id'], scores_each[img_id]['caption']))
+                print('image %s, %s' % (
+                    scores_each[img_id]['image_id'], scores_each[img_id]['caption']))
                 print('cider {0:2f}'.format(scores_each[img_id]['CIDEr']))
-                text_file = open('gen_cap/cap'+ eval_kwargs['model'][-10:-4] + '.txt', "aw")
-                text_file.write('image %s, %s' % (scores_each[img_id]['image_id'], scores_each[img_id]['caption']))
-                text_file.write('\n cider {0:2f}'.format(scores_each[img_id]['CIDEr']))
+                text_file = open(
+                    'gen_cap/cap' + eval_kwargs['model'][-10:-4] + '.txt', "aw")
+                text_file.write('image %s, %s' % (
+                    scores_each[img_id]['image_id'], scores_each[img_id]['caption']))
+                text_file.write('\n cider {0:2f}'.format(
+                    scores_each[img_id]['CIDEr']))
                 text_file.write('\n')
                 text_file.close()
 

@@ -14,6 +14,16 @@ import torch.utils.data as data
 
 import multiprocessing
 
+from config import get_conf 
+if torch.cuda.is_available():
+    device = torch.device('cuda')
+else:
+    device = torch.device('cpu')
+
+conf = get_conf()
+device = torch.device('cpu') if conf['device'] == 'cpu' else device 
+print(device, "in", __file__)
+
 class DataLoader(data.Dataset):
 
     def reset_iterator(self, split):
@@ -55,10 +65,10 @@ class DataLoader(data.Dataset):
 
         print('using new dict')
         if self.opt.sg_dict_path == 'data/spice_sg_dict2.npz':
-            sg_dict_info = np.load(self.opt.sg_dict_path)['spice_dict'][()]
+            sg_dict_info = np.load(self.opt.sg_dict_path, allow_pickle=True)['spice_dict'][()]
             self.ix_to_word = sg_dict_info['ix_to_word']
         else:
-            sg_dict_info = np.load(self.opt.sg_dict_path)['sg_dict'][()]
+            sg_dict_info = np.load(self.opt.sg_dict_path, allow_pickle=True)['sg_dict'][()]
             self.ix_to_word = sg_dict_info['sg_ix_to_word']
         self.vocab_size = len(self.ix_to_word)
         print('vocab size is ', self.vocab_size)
@@ -171,8 +181,7 @@ class DataLoader(data.Dataset):
 
         for i in range(batch_size):
             # fetch image
-            tmp_fc, tmp_att, tmp_rela, tmp_ssg,\
-                ix, tmp_wrapped = self._prefetch_process[split].get()
+            tmp_fc, tmp_att, tmp_rela, tmp_ssg, ix, tmp_wrapped = self._prefetch_process[split].get()
             fc_batch.append(tmp_fc)
             att_batch.append(tmp_att)
 
@@ -203,8 +212,7 @@ class DataLoader(data.Dataset):
         # #sort by att_feat length
         # fc_batch, att_batch, label_batch, gts, infos = \
         #     zip(*sorted(zip(fc_batch, att_batch, np.vsplit(label_batch, batch_size), gts, infos), key=lambda x: len(x[1]), reverse=True))
-        fc_batch, att_batch, label_batch, gts, infos = \
-            zip(*sorted(zip(fc_batch, att_batch, np.vsplit(label_batch, batch_size), gts, infos), key=lambda x: 0, reverse=True))
+        fc_batch, att_batch, label_batch, gts, infos = zip(*sorted(zip(fc_batch, att_batch, np.vsplit(label_batch, batch_size), gts, infos), key=lambda x: 0, reverse=True))
         data = {}
         data['fc_feats'] = np.stack(reduce(lambda x,y:x+y, [[_]*seq_per_img for _ in fc_batch]))
         max_att_len = max([_.shape[0] for _ in att_batch])
@@ -448,4 +456,7 @@ class BlobFetcher():
 
         assert tmp[4] == ix, "ix not equal"
 
+        # print(type(tmp), tmp)
+        # print(type(wrapped), wrapped)
+        # import pdb; pdb.set_trace()
         return tmp + [wrapped]

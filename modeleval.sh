@@ -1,0 +1,1 @@
+python eval_mem.py --dump_images 0 --num_images 5000 --model id72/modelid740072.pth --infos_path id72/infos_id740072.pkl --language_eval 1 --beam_size 5 --split test --index_eval 1 --use_rela 0 --training_mode 2 --memory_cell_path id72/memory_cellid740072.npz --sg_dict_path data/spice_sg_dict2.npz --input_ssg_dir data/coco_spice_sg2 --batch_size 5

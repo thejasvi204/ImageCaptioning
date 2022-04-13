@@ -53,7 +53,7 @@ def main(params):
   net = getattr(resnet, params['model'])()
   net.load_state_dict(torch.load(os.path.join(params['model_root'],params['model']+'.pth')))
   my_resnet = myResnet(net)
-  my_resnet.cuda()
+  my_resnet.to(device)
   my_resnet.eval()
 
   imgs = json.load(open(params['input_json'], 'r'))
@@ -78,7 +78,7 @@ def main(params):
       I = np.concatenate((I,I,I), axis=2)
 
     I = I.astype('float32')/255.0
-    I = torch.from_numpy(I.transpose([2,0,1])).cuda()
+    I = torch.from_numpy(I.transpose([2,0,1])).to(device)
     I = preprocess(I)
     with torch.no_grad():
       tmp_fc, tmp_att = my_resnet(I, params['att_size'])
