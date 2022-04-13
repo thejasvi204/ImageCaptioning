@@ -13,9 +13,9 @@
 # https://arxiv.org/abs/1707.07998
 # However, it may not be identical to the author's architecture.
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
+
+
+
 
 import torch
 import torch.nn as nn
@@ -24,6 +24,14 @@ import numpy as np
 import os
 import misc.utils as utils
 from torch.nn.utils.rnn import PackedSequence, pack_padded_sequence, pad_packed_sequence
+from functools import reduce
+
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+if torch.cuda.is_available():
+    device = torch.device('cuda')
+else:
+    device = torch.device('cpu')
+print(device)
 
 from config import get_conf 
 if torch.cuda.is_available():
@@ -39,7 +47,7 @@ from .CaptionModel_mem import CaptionModel
 
 def sort_pack_padded_sequence(input, lengths):
     sorted_lengths, indices = torch.sort(lengths, descending=True)
-    tmp = pack_padded_sequence(input[indices], sorted_lengths, batch_first=True)
+    tmp = pack_padded_sequence(input[indices], sorted_lengths.cpu(), batch_first=True)
     inv_ix = indices.clone()
     inv_ix[indices] = torch.arange(0,len(indices)).type_as(inv_ix)
     return tmp, inv_ix
@@ -1014,4 +1022,3 @@ class imge2sene_fc(nn.Module):
         y2 = self.fc2(y1)
         y3 = self.fc3(y2)
         return y3
-

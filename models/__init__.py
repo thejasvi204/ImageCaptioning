@@ -2,6 +2,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+
 import os
 import copy
 
@@ -132,6 +133,7 @@ def setup(opt):
         model = LSTM_mem4(opt)
     else:
         raise Exception("Caption model not supported: {}".format(opt.caption_model))
+
 
     save_id_real = getattr(opt, 'save_id', '')
     if save_id_real == '':

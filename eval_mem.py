@@ -2,6 +2,12 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+from captioning.data.dataloaderraw import *
+# from captioning.data.dataloader import *
+from dataloader_extend import *
+# from six.moves import cPickle
+import _pickle as cPickle
+
 import json
 import numpy as np
 
@@ -12,7 +18,6 @@ from six.moves import cPickle
 
 # import opts
 import models
-from dataloader_extend import *
 import eval_utils_mem
 from captioning.data.dataloaderraw import *
 import argparse
